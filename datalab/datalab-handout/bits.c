@@ -179,7 +179,7 @@ int bitCount(int x) {        //CSAPP 3.49
   val += (x>>3)& mask;
   val += val>>16;
   mask = 0xf|(0xf<<8);
-  val = val & mask + (val>>4)&mask;
+  val = (val & mask) + ((val>>4)&mask);
   val = (val + (val>>8))&0x3f; 
   return val;
 }
@@ -190,7 +190,7 @@ int bitCount(int x) {        //CSAPP 3.49
  */
 int bang(int x) {
   int result = x|(~x + 1); //when x!=0 it must be (x|-x)==1010011...
-  result = result>>31 + 1;
+  result =(result>>31) + 1;
   return result;
 }
 /* 
@@ -212,10 +212,10 @@ int tmin(void) {
  *   Rating: 2
  */
 int fitsBits(int x, int n) {
-  int val = x >> n;
-  result = val | (~val + 1);
-  result = (s >> 31) + 1;
-  return result;
+  int shiftnum;
+  shiftnum = 32 + (~n+1);
+  return !(x^((x<<shiftnum)>>shiftnum));
+
 }
 /* 
  * divpwr2 - Compute x/(2^n), for 0 <= n <= 30
@@ -226,7 +226,7 @@ int fitsBits(int x, int n) {
  *   Rating: 2
  */
 int divpwr2(int x, int n) {
-    return (x + (1 << (n & (x >> 31)) - 1)) >> n;//if x<0 (x+bias)>>2^n
+    return (x + ((1 << (n & (x >> 31))) - 1)) >> n;//if x<0 (x+bias)>>2^n
 }
 /* 
  * negate - return -x 
@@ -246,9 +246,7 @@ int negate(int x) {
  *   Rating: 3
  */
 int isPositive(int x) {
-  val = (x|(~x+1))>>31;
-  val +=(1<<(x>>31)-1);
-  return val>>31;
+  return !((x>>31)|(!x));
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -258,8 +256,11 @@ int isPositive(int x) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  val = y + (~x + 1);
-  return val >> 31 + 1;
+  int signx = x>>31;
+  int signy = y>>31;
+  int samesign = (!(signx^signy))&((x+(~y))>>31);
+  int diffrsign = signx&(!signy);
+  return samesign|diffrsign;
 }
 /*
  * ilog2 - return floor(log base 2 of x), where x > 0
@@ -269,7 +270,17 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4
  */
 int ilog2(int x) {
-  return 2;
+int bitsNumber=0;  
+        //binary search process  
+        bitsNumber=(!!(x>>16))<<4;  
+        bitsNumber=bitsNumber+((!!(x>>(bitsNumber+8)))<<3);  
+        bitsNumber=bitsNumber+((!!(x>>(bitsNumber+4)))<<2);  
+        bitsNumber=bitsNumber+((!!(x>>(bitsNumber+2)))<<1);  
+        bitsNumber=bitsNumber+(!!(x>>(bitsNumber+1)));  
+        //for non zero bitsNumber, it should add 0  
+        //for zero bitsNumber, it should subtract 1  
+        bitsNumber=bitsNumber+(!!bitsNumber)+(~0)+(!(1^x));  
+        return bitsNumber;  
 }
 /* 
  * float_neg - Return bit-level equivalent of expression -f for
@@ -283,7 +294,14 @@ int ilog2(int x) {
  *   Rating: 2
  */
 unsigned float_neg(unsigned uf) {
- return 2;
+  unsigned temp;
+  unsigned result;
+  temp = uf&0x7fffffff;
+  result = uf^0x80000000;
+  if (temp>0x7f800000){
+    result = uf;
+ }
+return result;
 }
 /* 
  * float_i2f - Return bit-level equivalent of expression (float) x
@@ -295,7 +313,46 @@ unsigned float_neg(unsigned uf) {
  *   Rating: 4
  */
 unsigned float_i2f(int x) {
-  return 2;
+  unsigned frac32;
+  unsigned frac23;
+  unsigned exp;
+  unsigned result;
+  unsigned guard;
+  unsigned temp;
+  unsigned help;
+  int j; 
+  int s;
+  int mask;
+  mask = 0x80000000;
+  s = 0;
+  j = 0;
+  
+  if (!x){
+    return 0;
+  }
+
+  if (x<0){
+  s = mask; 
+  x = -x;
+  }
+
+  while (!(mask & x)){
+    j++;
+    x<<=1;
+  }
+  
+  frac32 = x<<1;
+  exp = 158 - (j)  ;
+  guard = (frac32 & (0x200))>>9;
+  help = frac32 & (0x000001ff);
+  frac23 = frac32>>9;
+  result = s + (exp <<23) + frac23;
+  if (help > 0x00000100 || ((help==0x00000100) && (guard)) )
+     {
+	temp = (exp<<23) + frac23;
+	return s + (temp+1);
+     }
+  return result;
 }
 /* 
  * float_twice - Return bit-level equivalent of expression 2*f for
@@ -309,5 +366,16 @@ unsigned float_i2f(int x) {
  *   Rating: 4
  */
 unsigned float_twice(unsigned uf) {
-  return 2;
+  unsigned f=uf;  
+        /* Computer 2*f. If f is a NaN, then return f. */  
+    if ((f & 0x7F800000) == 0){  
+        //shift one bit to left  
+                f = ((f & 0x007FFFFF)<<1) | (0x80000000 & f);  
+    }  
+    else if ((f & 0x7F800000) != 0x7F800000){  
+        /* Float has a special exponent. */  
+        /* Increment exponent, effectively multiplying by 2. */  
+        f =f+0x00800000;  
+        }  
+    return f;  
 }
