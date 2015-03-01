@@ -315,7 +315,7 @@ return result;
 unsigned float_i2f(int x) {
   unsigned frac32;
   unsigned frac23;
-  unsigned exp;
+  unsigned expo;
   unsigned result;
   unsigned guard;
   unsigned temp;
@@ -342,14 +342,14 @@ unsigned float_i2f(int x) {
   }
   
   frac32 = x<<1;
-  exp = 158 - (j)  ;
+  expo = 158 - (j)  ;
   guard = (frac32 & (0x200))>>9;
   help = frac32 & (0x000001ff);
   frac23 = frac32>>9;
-  result = s + (exp <<23) + frac23;
+  result = s + (expo <<23) + frac23;
   if (help > 0x00000100 || ((help==0x00000100) && (guard)) )
      {
-	temp = (exp<<23) + frac23;
+	temp = (expo <<23) + frac23;
 	return s + (temp+1);
      }
   return result;
