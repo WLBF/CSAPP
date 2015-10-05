@@ -1,2 +1,2 @@
--lab1
--lab2
+lab1    
+lab2
